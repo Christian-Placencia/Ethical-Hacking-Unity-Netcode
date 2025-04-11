@@ -51,5 +51,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "KitchenChaos_143_Polish.sln"
+    "dotnet.defaultSolution": "Ethical-Hacking-Unity-Netcode.sln"
 }
