@@ -60,17 +60,42 @@ public class DeliveryManager : NetworkBehaviour {
     }
 
 
+    // Change this method to call a ServerRpc instead of directly validating
     public void DeliverRecipe(PlateKitchenObject plateKitchenObject) {
+        // Send plate contents to server for validation
+        List<int> plateKitchenObjectSOIds = new List<int>();
+        foreach (KitchenObjectSO kitchenObjectSO in plateKitchenObject.GetKitchenObjectSOList()) {
+            // We'll send IDs rather than whole objects over network
+            plateKitchenObjectSOIds.Add(kitchenObjectSO.objectId);
+        }
+        
+        // Call server to validate the recipe
+        ValidateRecipeServerRpc(plateKitchenObjectSOIds.ToArray());
+    }
+
+    // New method to handle server-side validation 
+    [ServerRpc(RequireOwnership = false)]
+    private void ValidateRecipeServerRpc(int[] plateKitchenObjectSOIds) {
+        // Convert back to KitchenObjectSO list on server
+        List<KitchenObjectSO> plateContents = new List<KitchenObjectSO>();
+        foreach (int objectId in plateKitchenObjectSOIds) {
+            KitchenObjectSO kitchenObjectSO = GetKitchenObjectSOById(objectId);
+            if (kitchenObjectSO != null) {
+                plateContents.Add(kitchenObjectSO);
+            }
+        }
+        
+        // Server-side validation
         for (int i = 0; i < waitingRecipeSOList.Count; i++) {
             RecipeSO waitingRecipeSO = waitingRecipeSOList[i];
 
-            if (waitingRecipeSO.kitchenObjectSOList.Count == plateKitchenObject.GetKitchenObjectSOList().Count) {
+            if (waitingRecipeSO.kitchenObjectSOList.Count == plateContents.Count) {
                 // Has the same number of ingredients
                 bool plateContentsMatchesRecipe = true;
                 foreach (KitchenObjectSO recipeKitchenObjectSO in waitingRecipeSO.kitchenObjectSOList) {
                     // Cycling through all ingredients in the Recipe
                     bool ingredientFound = false;
-                    foreach (KitchenObjectSO plateKitchenObjectSO in plateKitchenObject.GetKitchenObjectSOList()) {
+                    foreach (KitchenObjectSO plateKitchenObjectSO in plateContents) {
                         // Cycling through all ingredients in the Plate
                         if (plateKitchenObjectSO == recipeKitchenObjectSO) {
                             // Ingredient matches!
@@ -86,7 +111,7 @@ public class DeliveryManager : NetworkBehaviour {
 
                 if (plateContentsMatchesRecipe) {
                     // Player delivered the correct recipe!
-                    DeliverCorrectRecipeServerRpc(i);
+                    DeliverCorrectRecipeClientRpc(i);
                     return;
                 }
             }
@@ -94,16 +119,22 @@ public class DeliveryManager : NetworkBehaviour {
 
         // No matches found!
         // Player did not deliver a correct recipe
-        DeliverIncorrectRecipeServerRpc();
-    }
-
-    // Incorrect deliveries
-    [ServerRpc(RequireOwnership = false)]
-    private void DeliverIncorrectRecipeServerRpc()
-    {
         DeliverIncorrecRecipeClientRpc();
     }
 
+    // Helper method to get KitchenObjectSO by ID
+    private KitchenObjectSO GetKitchenObjectSOById(int objectId) {
+        // Lookup in your KitchenObjectSO database
+        // You'll need to ensure each KitchenObjectSO has a unique ID
+        foreach (KitchenObjectSO kitchenObjectSO in recipeListSO.GetAllKitchenObjectSOs()) {
+            if (kitchenObjectSO.objectId == objectId) {
+                return kitchenObjectSO;
+            }
+        }
+        return null;
+    }
+
+    // Incorrect deliveries
     [ClientRpc]
     private void DeliverIncorrecRecipeClientRpc()
     {
@@ -111,12 +142,6 @@ public class DeliveryManager : NetworkBehaviour {
     }
 
     // Correct delivieries
-    [ServerRpc(RequireOwnership = false)]
-    private void DeliverCorrectRecipeServerRpc(int waitingRecipeSOListIndex)
-    {
-        DeliverCorrectRecipeClientRpc(waitingRecipeSOListIndex);
-    }
-
     [ClientRpc]
     private void DeliverCorrectRecipeClientRpc(int waitingRecipeSOListIndex)
     {
