@@ -10,7 +10,7 @@ public class SelectedCounterVisual : MonoBehaviour {
 
 
     private void Start() {
-        if (Player.LocalInstance == null)
+        if (Player.LocalInstance != null)
         {
             Player.LocalInstance.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
         }

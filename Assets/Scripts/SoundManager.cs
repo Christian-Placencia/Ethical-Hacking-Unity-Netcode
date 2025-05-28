@@ -28,9 +28,25 @@ public class SoundManager : MonoBehaviour {
         DeliveryManager.Instance.OnRecipeSuccess += DeliveryManager_OnRecipeSuccess;
         DeliveryManager.Instance.OnRecipeFailed += DeliveryManager_OnRecipeFailed;
         CuttingCounter.OnAnyCut += CuttingCounter_OnAnyCut;
-        Player.LocalInstance.OnPickedSomething += Player_OnPickedSomething;
+        
+        // Replace the problematic line with a null check
+        if (Player.LocalInstance != null) {
+            Player.LocalInstance.OnPickedSomething += Player_OnPickedSomething;
+        } else {
+            // Try to subscribe later
+            StartCoroutine(WaitForPlayerInstance());
+        }
+        
         BaseCounter.OnAnyObjectPlacedHere += BaseCounter_OnAnyObjectPlacedHere;
         TrashCounter.OnAnyObjectTrashed += TrashCounter_OnAnyObjectTrashed;
+    }
+
+    private IEnumerator WaitForPlayerInstance() {
+        while (Player.LocalInstance == null) {
+            yield return new WaitForSeconds(0.1f);
+        }
+        // Now it's safe to subscribe
+        Player.LocalInstance.OnPickedSomething += Player_OnPickedSomething;
     }
 
     private void TrashCounter_OnAnyObjectTrashed(object sender, System.EventArgs e) {
